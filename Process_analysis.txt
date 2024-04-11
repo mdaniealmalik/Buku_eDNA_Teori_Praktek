@@ -1,0 +1,109 @@
+Proses Analysis :
+
+# All fasq.gz were splited into minimum size or plus-minus 10000 reads
+seqkit split2 -1 S2406_1.fastq.gz -2 S2406_2.fastq.gz -p 12 -O out -f
+seqkit split2 -1 S2408_1.fastq.gz -2 S2408_2.fastq.gz -p 12 -O out -f
+seqkit split2 -1 S2419_1.fastq.gz -2 S2419_2.fastq.gz -p 12 -O out -f
+seqkit split2 -1 S2421_1.fastq.gz -2 S2421_2.fastq.gz -p 12 -O out -f
+
+#Connect network harddrive on command line
+net use E: \\10.68.16.10\DMBP_folder /PERSISTENT:YES
+
+time for file in *.tar.gz; do tar -zxvf $file; done
+
+E:\Data_Danie\rCRUX\NCBI_blast_nt
+
+blastdbcmd -db 'NCBI_blast_nt' -dbtype nucl -entry MN937193.1 -range 499-633
+
+
+sudo mount -t drvfs E: /mnt/e
+E: /mnt/m drvfs defaults 0 0
+
+#process analysis
+qiime tools import \
+ --type 'SampleData[PairedEndSequencesWithQuality]' \
+ --input-path manifest.txt \
+ --output-path paired-end-samples.qza \
+ --input-format PairedEndFastqManifestPhred33
+
+qiime demux summarize \
+ --i-data paired-end-samples.qza \
+ --o-visualization paired-end-samples.qzv
+
+qiime cutadapt trim-paired \
+ --i-demultiplexed-sequences paired-end-samples.qza \
+ --p-cores 4 \
+ --p-front-f GTGCCCAGCMGCCGCGGTAA \
+ --p-front-r GGACTACHVGGGTWTCTAAT \
+ --o-trimmed-sequences demux-trimmed-samples.qza
+
+qiime demux summarize \
+ --i-data demux-trimmed-samples.qza \
+ --o-visualization demux-trimmed-samples.qzv
+
+qiime dada2 denoise-paired \
+ --i-demultiplexed-seqs demux-trimmed-samples.qza \
+ --p-trim-left-f 0 \
+ --p-trim-left-r 0 \
+ --p-trunc-len-f 180 \
+ --p-trunc-len-r 210 \
+ --o-table table-dada2.qza \
+ --o-representative-sequences rep-seqs-dada2.qza \
+ --o-denoising-stats denoising-stats-dada2.qza \
+ --p-n-threads 8
+
+qiime metadata tabulate \
+ --m-input-file denoising-stats-dada2.qza \
+ --o-visualization denoising-stats-dada2.qzv
+
+qiime feature-table tabulate-seqs \
+ --i-data rep-seqs-dada2.qza \
+ --o-visualization rep-seqs-dada2.qzv
+
+qiime feature-table summarize \
+ --i-table table-dada2.qza \
+ --m-sample-metadata-file map.csv \
+ --o-visualization table-dada2.qzv
+
+qiime feature-classifier classify-consensus-blast \
+ --i-query rep-seqs-dada2.qza \
+ --i-reference-taxonomy silva-138-99-tax.qza \
+ --i-reference-reads silva-138-99-seqs.qza \
+ --o-classification taxonomy.qza
+ --output-dir test 
+
+qiime metadata tabulate \
+ --m-input-file taxonomy.qza \
+ --o-visualization taxonomy.qzv
+
+qiime metadata tabulate \
+ --m-input-file test/search_results.qza \
+ --o-visualization test/search_results.qzv
+
+qiime phylogeny align-to-tree-mafft-fasttree \
+ --i-sequences rep-seqs-dada2.qza \
+ --o-alignment aligned-rep-seqs.qza \
+ --o-masked-alignment masked-aligned-rep-seqs.qza \
+ --o-tree unrooted-tree.qza \
+ --o-rooted-tree rooted-tree.qza
+
+qiime tools export \
+ --input-path table-dada2.qza \
+ --output-path statistic
+
+biom convert -i statistic/feature-table.biom -o statistic/asv_table.txt --to-tsv
+
+qiime tools export \
+ --input-path unrooted-tree.qza \
+ --output-path statistic
+
+qiime tools export \
+ --input-path taxonomy.qza \
+ --output-path statistic
+
+#Barplot
+qiime taxa barplot \
+ --i-table table-dada2.qza \
+ --i-taxonomy taxonomy.qza \
+ --m-metadata-file map.csv \
+ --o-visualization taxa-bar-plots.qzv
