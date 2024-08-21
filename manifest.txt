@@ -1,0 +1,9 @@
+sample-id,absolute-filepath,direction
+S2406,$PWD/Data/S2406_1.fastq.gz,forward
+S2406,$PWD/Data/S2406_2.fastq.gz,reverse
+S2408,$PWD/Data/S2408_1.fastq.gz,forward
+S2408,$PWD/Data/S2408_2.fastq.gz,reverse
+S2419,$PWD/Data/S2419_1.fastq.gz,forward
+S2419,$PWD/Data/S2419_2.fastq.gz,reverse
+S2421,$PWD/Data/S2421_1.fastq.gz,forward
+S2421,$PWD/Data/S2421_2.fastq.gz,reverse
